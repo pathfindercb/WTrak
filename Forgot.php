@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 
-<!-- Menu 04/13/19 -->
+<!-- Forgot Password 05/27/19 -->
 <!--	This is the main web index for all the CRUD file maintenance using a form to select-->
 
 <html>
@@ -29,7 +29,7 @@
 	//get the secret key not stored in www folders
 	require_once ($pfolder . 'DBkey.php');
 	$paicrypt = new PAI_crypt($DBkey);
-	$smsg = "Please Login. Click here to <a href='Register.php'>Register</a>";
+	$smsg = "Enter registered email address";
 	$row = "";
 	//get cookie then unset
 	if(isset($_COOKIE["wemail"])) {
@@ -38,7 +38,7 @@
 	} else {
 		$email = "";
 	}
-	// first check Post from Login form 
+	// first check Post from Forgot form 
 	if(!empty($_POST)) {
 		// check if entered userid is in wuser
 		$sql = "SELECT * FROM `wuser` where email = :email AND wactive = :wactive";
@@ -48,24 +48,21 @@
 		$stmt->execute($val);
 		$res = $stmt->fetch(PDO::FETCH_ASSOC);
 		if($res) {
-			// now check password
-			if ($paicrypt->decrypt($res['password']) == $_POST['password']) {
-				$_SESSION["wemail"] = $res['email'];
-				$_SESSION["wusername"] = $res['username'];
-				$_SESSION["wuserid"] = $res['userid'];
-				$_SESSION["wgoal"] = $res['wgoal'];
-				$_SESSION["wgoaldate"] = $res['wgoaldate'];
-				//set cookie for a month if Remember me is checked
-				if (isset($_POST['chkcookie'])) {
-					setcookie("wemail", $res['email'], time() + (86400 * 30), "/");
-				}
-				header("Location:View.php");
+			// now email password
+			$pass = $paicrypt->decrypt($res['password']);
+			$to = $email;
+			$subject = 'WTrak Password' ;
+			$message = "Your WTrak Password" . "=" . $pass;
+			$headers = 'From: cbarlow@pathfinderassociatesinc.com' . "\r\n" .
+				'Reply-To: cbarlow@pathfinderassociatesinc.com' . "\r\n" .
+				'X-Mailer: PHP/' . phpversion();
+			if (mail($to, $subject, $message, $headers)) {
+				header("Location:Login.php");
 			} else {
-				$fmsg = "Invalid Email or Password!" ;
+				$fmsg = "Mail failed";
 			}
 		} else {
-			$fmsg = "Invalid Email or Password!" ;
-
+			$fmsg = "Invalid Email" ;
 		}
 	}
 ?>
@@ -75,7 +72,7 @@
      <?php if(isset($smsg)){ ?><div class="alert alert-success col-xs-12 col-md-6 col-md-offset-3" role="alert"> <?php echo $smsg; ?> </div><?php } ?>
 	<?php if(isset($fmsg)){ ?><div class="alert alert-danger col-xs-12 col-md-6 col-md-offset-3" role="alert"> <?php echo $fmsg; ?> </div><?php } ?>
 		<form name="frmUser" method="post" class="form-horizontal col-xs-12 col-md-6 col-md-offset-3">
-		<h2>WTrak Login</h2>
+		<h2>WTrak Forgot Password</h2>
 			<div class="form-group">
 			    <label for="email" class="col-xs-4 control-label">Email address</label>
 			    <div class="col-xs-8">
@@ -83,18 +80,8 @@
 			    </div>
 			</div>
 			<div class="form-group">
-			    <label for="password" class="col-xs-4 control-label">Password</label>
-			    <div class="col-xs-8">
-			      <input type="password" name="password"  class="form-control" required id="password"/>
-			    </div>
+			<input type="submit" name="SendPass" class="btn btn-primary col-xs-8 col-xs-offset-4 col-md-8 col-md-offset-4" value="Send Password" />
 			</div>
-			<div class="form-group">
-			<input type="submit" name="Login" class="btn btn-primary col-xs-8 col-xs-offset-4 col-md-8 col-md-offset-4" value="Login" />
-			</div>
-			<div class="clearfix col-xs-8 col-xs-offset-4 col-md-8 col-md-offset-4">
-				<label class="float-left checkbox-inline"><input type="checkbox" name="chkcookie" value= "Yes" checked> Remember me</label>
-				<a href="Forgot.php" class="float-right">Forgot Password?</a>
-			</div>        
 		</form>
 	</div>
 </div>
