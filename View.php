@@ -1,7 +1,7 @@
 <?php
 /** PAI CRUD View
- * package    PAI_CRUD 20180513
- * @license   Copyright © 2018 Pathfinder Associates, Inc.
+ * package    PAI_CRUD 20190413
+ * @license   Copyright © 2019 Pathfinder Associates, Inc.
  *	opens the wtrak db and view the wdata table
  */
 
@@ -12,10 +12,11 @@ if(!isset($_SESSION["wuserid"])) {
 }
 require ("DBopen.php");
 $now = time(); 
-$gdate = strtotime($_SESSION[wgoaldate]);
+$gdate = strtotime($_SESSION["wgoaldate"]);
 $datediff = $gdate - $now;
 $days = round($datediff / (60 * 60 * 24));
-$smsg = $fmsg . "Welcome <a href='Profile.php'>" . $_SESSION["wusername"] . "</a>. Your goal is " . $_SESSION["wgoal"] . " by " . $_SESSION[wgoaldate]. " in " . ceil($days/7) . " weeks.   <a href='Logout.php'>     Logout</a>";
+$fmsg = "";
+$smsg = $fmsg . "Welcome <a href='Profile.php'>" . $_SESSION["wusername"] . "</a>. Your goal is " . $_SESSION["wgoal"] . " by " . $_SESSION["wgoaldate"]. " in " . ceil($days/7) . " weeks.   <a href='Logout.php'>     Logout</a>";
 $perpage = 10; 
 if(isset($_GET['page']) & !empty($_GET['page'])){
 	$curpage = $_GET['page'];
@@ -23,7 +24,7 @@ if(isset($_GET['page']) & !empty($_GET['page'])){
 	$curpage = 1;
 }
 $start = ($curpage * $perpage) - $perpage;
-$PageSql = "SELECT * FROM `wdata` where userid = '" . $_SESSION['wuserid'] ."'";
+$PageSql = "SELECT * FROM `wdata` where userid = '" . $_SESSION["wuserid"] ."'";
 $pageres = $pdo->prepare($PageSql);
 $pageres->execute();
 $totalres = $pageres->rowcount();
@@ -32,9 +33,11 @@ $startpage = 1;
 if ($endpage > 0) {
 	$nextpage = $curpage + 1;
 	$previouspage = $curpage - 1;
+} else {
+	$nextpage = "";
 }
 
-$sql = "SELECT dataid, wdate, wgt, wnote FROM `wdata` where userid = " . $_SESSION['wuserid'] . " ORDER BY wdate desc LIMIT $start, $perpage";
+$sql = "SELECT dataid, wdate, wgt, wnote FROM `wdata` where userid = " . $_SESSION["wuserid"] . " ORDER BY wdate desc LIMIT $start, $perpage";
 $stmt = $pdo->prepare($sql);
 $stmt->execute();
 ?>

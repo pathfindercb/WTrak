@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 
-<!-- Menu 05/11/18 -->
+<!-- Menu 04/13/19 -->
 <!--	This is the main web index for all the CRUD file maintenance using a form to select-->
 
 <html>
@@ -35,6 +35,8 @@
 	if(isset($_COOKIE["wemail"])) {
 		$email = $_COOKIE["wemail"];
 		unset($_COOKIE["wemail"]);
+	} else {
+		$email = "";
 	}
 	// first check Post from Login form 
 	if(!empty($_POST)) {
@@ -100,7 +102,7 @@
 <footer class="page-footer font-small blue pt-4 mt-4">
 <!--Copyright-->
     <div class="footer-copyright py-3 text-center">
-        Copyright © 2018 
+        Copyright © 2019 
         <a href="http://pathfinderassociatesinc.com/"> Pathfinder Associates, Inc.</a>
     </div>
 <!--/.Copyright-->
