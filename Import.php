@@ -1,6 +1,6 @@
 <?php
 /** PAI CRUD Import
- * package    PAI_CRUD 20180513
+ * package    PAI_CRUD 20190528
  * @license   Copyright © 2018 Pathfinder Associates, Inc.
  *	opens the wtrak db and imports to the wdata table
  */
@@ -123,7 +123,7 @@ if(isset($_POST) & !empty($_POST)){
 			<label for="input1" class="col-sm-2 control-label">Import type</label>
 			<div class="col-sm-6">
 				<select name="choice" class="form-control">
-				<option value="1">CSV with header: date,weight,note</option>
+				<option value="1">CSV with header: date,weight,note & date as yyyy-mm-dd</option>
 				<option value="2">JSON in format: {Response}{version}{Data}{Date}{Weight}{Note}</option>
 				</select>			
 			</div>
