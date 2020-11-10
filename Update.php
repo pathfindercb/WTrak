@@ -1,16 +1,21 @@
 <?php
-/** PAI CRUD View
- * package    PAI_CRUD 20180511
- * @license   Copyright © 2018 Pathfinder Associates, Inc.
- *	opens the wtrak db and view the wdata table
+/** PAI CRUD Update
+ * package    PAI_CRUD 20201030
+ * @license   Copyright © 2020 Pathfinder Associates, Inc.
+ *	opens the wtrak db and updates the wdata table
  */
 
 // check if logged in 
 session_start();
 if(!isset($_SESSION["wuserid"])) {
 	header("Location:Login.php");
+	exit;
 }
 require ("DBopen.php");
+include ("PAI_crypt.class.php");
+//get the secret key not stored in www folders
+require_once ($pfolder . 'DBkey.php');
+$paicrypt = new PAI_crypt($DBkey);
 
 // find the record
 $dataid = $_GET['dataid'];
@@ -23,7 +28,7 @@ $r = $stmt->fetch(PDO::FETCH_ASSOC);
 if(isset($_POST) & !empty($_POST)){
 	$wgt = ($_POST['wgt']);
 	$wdate = ($_POST['wdate']);
-	$wnote = ($_POST['wnote']);
+	$wnote = $paicrypt->encrypt($_POST['wnote']);
 
 	$sql = "UPDATE `wdata` SET wgt=:wgt, wdate=:wdate, wnote=:wnote WHERE dataid=:dataid";
 	$val = array("wdate" => $wdate, "wgt" => $wgt, "wnote" => $wnote, "dataid" => $dataid);
@@ -66,13 +71,13 @@ if(isset($_POST) & !empty($_POST)){
 			<div class="form-group">
 			    <label for="wgt" class="col-sm-2 control-label">Weight</label>
 			    <div class="col-sm-6">
-			    <input type="text" name="wgt"  class="form-control" id="wgt" value="<?php echo $r['wgt']; ?>"  placeholder="Weight" />
+			    <input type="number" step="0.1" name="wgt"  class="form-control" id="wgt" value="<?php echo $r['wgt']; ?>"  placeholder="Weight" />
 			    </div>
 			</div>
 			<div class="form-group">
-			    <label for="wnote" class="col-sm-2 control-label">Weight</label>
+			    <label for="wnote" class="col-sm-2 control-label">Note</label>
 			    <div class="col-sm-6">
-			    <input type="text" name="wnote" maxlength="40"  class="form-control" id="wnote" value="<?php echo $r['wnote']; ?>"  placeholder="Note" />
+			    <input type="text" name="wnote" maxlength="40"  class="form-control" id="wnote" value="<?php echo $paicrypt->decrypt($r['wnote']); ?>"  placeholder="Note" />
 			    </div>
 			</div>
 			<div class="form-group">

@@ -1,11 +1,18 @@
+<?php
+/** PAI CRUD Login
+ * package    PAI_CRUD 202001104
+ * @license   Copyright © 2020 Pathfinder Associates, Inc.
+ *	opens the wtrak db and sets userid in session for login
+ */
+?>
 <!DOCTYPE html>
 
-<!-- Menu 04/13/19 -->
+<!-- Menu 03/26/2020 -->
 <!--	This is the main web index for all the CRUD file maintenance using a form to select-->
 
 <html>
 <head>
-<title>WTrak Menu v1.0</title>
+<title>WTrak Menu v2.2</title>
 	<!-- Latest compiled and minified CSS -->
 <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" >
  
@@ -21,14 +28,18 @@
 
 <body>
 <?php
+	$dbug = false;
 	session_start();
 	unset($_SESSION["wuserid"]);
 	register_shutdown_function('shutDownFunction');
 	require ("DBopen.php");
+	if ($dbug) {echo ($pfolder . " " . $dsn);}
 	include ("PAI_crypt.class.php");
 	//get the secret key not stored in www folders
 	require_once ($pfolder . 'DBkey.php');
 	$paicrypt = new PAI_crypt($DBkey);
+	require_once ('PAI_GoogleAuth.php');
+	$ga = new PAI_GoogleAuth();
 	$smsg = "Please Login. Click here to <a href='Register.php'>Register</a>";
 	$row = "";
 	//get cookie then unset
@@ -44,12 +55,13 @@
 		$sql = "SELECT * FROM `wuser` where email = :email AND wactive = :wactive";
 		$stmt = $pdo->prepare($sql);
 		$email = $_POST["email"];
+		$scode = $_POST["scode"];
 		$val = array("email" => $email,"wactive" => true);
 		$stmt->execute($val);
 		$res = $stmt->fetch(PDO::FETCH_ASSOC);
 		if($res) {
 			// now check password
-			if ($paicrypt->decrypt($res['password']) == $_POST['password']) {
+			if (password_verify($_POST['password'],$res['password']) && $ga->verifyCode($res['scode'], $_POST["scode"], 2)) {
 				$_SESSION["wemail"] = $res['email'];
 				$_SESSION["wusername"] = $res['username'];
 				$_SESSION["wuserid"] = $res['userid'];
@@ -61,10 +73,10 @@
 				}
 				header("Location:View.php");
 			} else {
-				$fmsg = "Invalid Email or Password!" ;
+				$fmsg = "Invalid Email or Password or Secret Code!" ;
 			}
 		} else {
-			$fmsg = "Invalid Email or Password!" ;
+			$fmsg = "Invalid Email or Password or Secret Code!" ;
 
 		}
 	}
@@ -89,6 +101,12 @@
 			    </div>
 			</div>
 			<div class="form-group">
+			    <label for="scode" class="col-xs-4 control-label">Secret code</label>
+			    <div class="col-xs-8">
+			      <input type="number" name="scode"  class="form-control" required id="scode"/>
+			    </div>
+			</div>
+			<div class="form-group">
 			<input type="submit" name="Login" class="btn btn-primary col-xs-8 col-xs-offset-4 col-md-8 col-md-offset-4" value="Login" />
 			</div>
 			<div class="clearfix col-xs-8 col-xs-offset-4 col-md-8 col-md-offset-4">
@@ -102,7 +120,7 @@
 <footer class="page-footer font-small blue pt-4 mt-4">
 <!--Copyright-->
     <div class="footer-copyright py-3 text-center">
-        Copyright © 2019 
+        Copyright © 2020 
         <a href="http://pathfinderassociatesinc.com/"> Pathfinder Associates, Inc.</a>
     </div>
 <!--/.Copyright-->

@@ -1,33 +1,42 @@
 <?php
 /** PAI CRUD View
- * package    PAI_CRUD 20190413
- * @license   Copyright © 2019 Pathfinder Associates, Inc.
+ * package    PAI_CRUD 20201104
+ * @license   Copyright © 2020 Pathfinder Associates, Inc.
  *	opens the wtrak db and view the wdata table
  */
 
 // check if logged in 
 session_start();
-if(!isset($_SESSION["wuserid"])) {
+if(!isset($_SESSION['wuserid'])) {
 	header("Location:Login.php");
+	exit;
 }
 require ("DBopen.php");
-$now = time(); 
-$gdate = strtotime($_SESSION["wgoaldate"]);
+include ("PAI_crypt.class.php");
+//get the secret key not stored in www folders
+require_once ($pfolder . 'DBkey.php');
+$paicrypt = new PAI_crypt($DBkey);
+
+$now = time();
+$gate = $now; 
+if(isset($_SESSION["wgoaldate"])) {$gdate = strtotime($_SESSION["wgoaldate"]);}
 $datediff = $gdate - $now;
 $days = round($datediff / (60 * 60 * 24));
 $fmsg = "";
-$smsg = $fmsg . "Welcome <a href='Profile.php'>" . $_SESSION["wusername"] . "</a>. Your goal is " . $_SESSION["wgoal"] . " by " . $_SESSION["wgoaldate"]. " in " . ceil($days/7) . " weeks.   <a href='Logout.php'>     Logout</a>";
-$perpage = 10; 
+if (isset($_SESSION['wgoal'])) {
+	$smsg = $fmsg . "Welcome <a href='Profile.php'>" . $_SESSION['wusername'] . "</a>. Your goal is " . $_SESSION['wgoal'] . " by " . $_SESSION['wgoaldate']. " in " . ceil($days/7) . " weeks.   <a href='Logout.php'>     Logout</a>";
+}
+$perpage = 15; 
 if(isset($_GET['page']) & !empty($_GET['page'])){
 	$curpage = $_GET['page'];
 }else{
 	$curpage = 1;
 }
-$start = ($curpage * $perpage) - $perpage;
-$PageSql = "SELECT * FROM `wdata` where userid = '" . $_SESSION["wuserid"] ."'";
+$start = ($curpage * $perpage) - $perpage ;
+$PageSql = "SELECT COUNT(*) FROM `wdata` where userid = '" . $_SESSION['wuserid'] ."'";
 $pageres = $pdo->prepare($PageSql);
 $pageres->execute();
-$totalres = $pageres->rowcount();
+$totalres = $pageres->fetchColumn();
 $endpage = ceil($totalres/$perpage);
 $startpage = 1;
 if ($endpage > 0) {
@@ -37,7 +46,7 @@ if ($endpage > 0) {
 	$nextpage = "";
 }
 
-$sql = "SELECT dataid, wdate, wgt, wnote FROM `wdata` where userid = " . $_SESSION["wuserid"] . " ORDER BY wdate desc LIMIT $start, $perpage";
+$sql = "SELECT dataid, wdate, wgt, wnote FROM `wdata` where userid = '" . $_SESSION['wuserid'] . "' ORDER BY wdate desc LIMIT $start, $perpage";
 $stmt = $pdo->prepare($sql);
 $stmt->execute();
 ?>
@@ -65,7 +74,7 @@ $stmt->execute();
 	<div class="row">
      <?php if(isset($smsg)){ ?><div class="alert alert-success" role="alert"> <?php echo $smsg; ?> </div><?php } ?>
 	<?php if(isset($fmsg)){ ?><div class="alert alert-danger" role="alert"> <?php echo $fmsg; ?> </div><?php } ?>
-	<h2>View WTrak</h2>
+	<h2>View WTrak 2.1</h2>
 		<input type="button" class="btn btn-info" value="Add Weight" onclick="location.href = 'Create.php';">
 		<input type="button" class="btn btn-info" value="Excel" onclick="location.href = 'ToExcel.php';">
 		<input type="button" class="btn btn-info" value="JSON" onclick="location.href = 'ToJSON.php';">
@@ -88,7 +97,7 @@ $stmt->execute();
 				<th scope="row"><?php echo $r['wdate']; ?></th> 
 				<td><?php echo $r['wgt']; ?></td> 
 				<td><?php echo $r['wgt']-$_SESSION['wgoal']; ?></td> 
-				<td><?php echo $r['wnote']; ?></td> 
+				<td><?php echo $paicrypt->decrypt($r['wnote']); ?></td> 
 				<td>
 					<a href="Update.php?dataid=<?php echo $r['dataid']; ?>"><button type="button" class="btn btn-info btn-xs" >Edit</button></a>
 					<button type="button" class="btn btn-warning btn-xs" data-toggle="modal" data-target="#myModal<?php echo $r['dataid']; ?>">Delete</button>
@@ -120,7 +129,7 @@ $stmt->execute();
 		</table>
 	</div>
 
-	<nav aria-label="Page navigation">
+<nav aria-label="Page navigation">
   <ul class="pagination">
   <?php if($curpage != $startpage){ ?>
     <li class="page-item">

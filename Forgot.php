@@ -1,11 +1,14 @@
+<?php
+/** PAI CRUD Forgot Password
+ * package    PAI_CRUD 20200406
+ * @license   Copyright © 2020 Pathfinder Associates, Inc.
+ *	opens the wtrak db and sets up email token for password reset
+ */
+?>
 <!DOCTYPE html>
-
-<!-- Forgot Password 05/27/19 -->
-<!--	This is the main web index for all the CRUD file maintenance using a form to select-->
-
 <html>
 <head>
-<title>WTrak Menu v1.0</title>
+<title>WTrak Menu v2.1</title>
 	<!-- Latest compiled and minified CSS -->
 <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" >
  
@@ -25,11 +28,7 @@
 	unset($_SESSION["wuserid"]);
 	register_shutdown_function('shutDownFunction');
 	require ("DBopen.php");
-	include ("PAI_crypt.class.php");
-	//get the secret key not stored in www folders
-	require_once ($pfolder . 'DBkey.php');
-	$paicrypt = new PAI_crypt($DBkey);
-	$smsg = "Enter registered email address";
+	$smsg = "Enter email address to get an email with a reset password link";
 	$row = "";
 	//get cookie then unset
 	if(isset($_COOKIE["wemail"])) {
@@ -40,7 +39,7 @@
 	}
 	// first check Post from Forgot form 
 	if(!empty($_POST)) {
-		// check if entered userid is in wuser
+		// check if entered email is in wuser
 		$sql = "SELECT * FROM `wuser` where email = :email AND wactive = :wactive";
 		$stmt = $pdo->prepare($sql);
 		$email = $_POST["email"];
@@ -48,22 +47,25 @@
 		$stmt->execute($val);
 		$res = $stmt->fetch(PDO::FETCH_ASSOC);
 		if($res) {
-			// now email password
-			$pass = $paicrypt->decrypt($res['password']);
-			$to = $email;
-			$subject = 'WTrak Password' ;
-			$message = "Your WTrak Password" . "=" . $pass;
-			$headers = 'From: cbarlow@pathfinderassociatesinc.com' . "\r\n" .
+			// now create token and update user record
+			$url = PWToken($res['userid'],$pdo);
+			if ($url) {
+				// now email password token
+				$to = $email;
+				$subject = 'WTrak Password Reset' ;
+				$message = "Click here to reset your password: " .  $url;
+				$headers = 'From: cbarlow@pathfinderassociatesinc.com' . "\r\n" .
 				'Reply-To: cbarlow@pathfinderassociatesinc.com' . "\r\n" .
 				'X-Mailer: PHP/' . phpversion();
-			if (mail($to, $subject, $message, $headers)) {
-				header("Location:Login.php");
-			} else {
-				$fmsg = "Mail failed";
+				if (mail($to, $subject, $message, $headers)) {
+					header("Location:Processing.php");
+				} else {
+					$fmsg = "Mail failed";
+				}
 			}
-		} else {
-			$fmsg = "Invalid Email" ;
-		}
+		} 
+		// return to Login
+		header("Location:Processing.php");
 	}
 ?>
 <p>
@@ -72,7 +74,7 @@
      <?php if(isset($smsg)){ ?><div class="alert alert-success col-xs-12 col-md-6 col-md-offset-3" role="alert"> <?php echo $smsg; ?> </div><?php } ?>
 	<?php if(isset($fmsg)){ ?><div class="alert alert-danger col-xs-12 col-md-6 col-md-offset-3" role="alert"> <?php echo $fmsg; ?> </div><?php } ?>
 		<form name="frmUser" method="post" class="form-horizontal col-xs-12 col-md-6 col-md-offset-3">
-		<h2>WTrak Forgot Password</h2>
+		<h2>WTrak Reset Password</h2>
 			<div class="form-group">
 			    <label for="email" class="col-xs-4 control-label">Email address</label>
 			    <div class="col-xs-8">
@@ -80,7 +82,7 @@
 			    </div>
 			</div>
 			<div class="form-group">
-			<input type="submit" name="SendPass" class="btn btn-primary col-xs-8 col-xs-offset-4 col-md-8 col-md-offset-4" value="Send Password" />
+			<input type="submit" name="SendPass" class="btn btn-primary col-xs-8 col-xs-offset-4 col-md-8 col-md-offset-4" value="Reset Password" />
 			</div>
 		</form>
 	</div>
@@ -89,7 +91,7 @@
 <footer class="page-footer font-small blue pt-4 mt-4">
 <!--Copyright-->
     <div class="footer-copyright py-3 text-center">
-        Copyright © 2019 
+        Copyright © 2020 
         <a href="http://pathfinderassociatesinc.com/"> Pathfinder Associates, Inc.</a>
     </div>
 <!--/.Copyright-->
@@ -97,6 +99,32 @@
 <!--/.Footer-->
 
 <?php
+function PWToken($userid,$pdo) {
+	//creates token and updates user db
+	// Create tokens
+	$selector = bin2hex(random_bytes(8));
+	$token = random_bytes(32);
+	// Token expiration
+	$expires = new DateTime('NOW');
+	$expires->add(new DateInterval('PT01H')); // 1 hour
+	$link = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 
+                "https" : "http") . "://" . $_SERVER['HTTP_HOST'] .  
+                $_SERVER['REQUEST_URI'];
+	$link = str_replace('Forgot.php','pwreset.php?',$link);
+	$url = $link . http_build_query([
+		'selector' => $selector,
+		'validator' => bin2hex($token)]) ;
+	// now update user record
+	$sql = "UPDATE `wuser` SET selector=:selector, token=:token, expires=:expires WHERE userid=:userid";
+	$val = array("userid" => $userid,"selector" => $selector, "token" => hash('sha256', $token), "expires" => $expires->format('U'));
+	$stmt = $pdo->prepare($sql);
+	if($stmt->execute($val)){
+		return $url;
+	}else{
+		$fmsg = "Failed to update data.";
+		return false;
+	}
+}
 
 function shutDownFunction() { 
     $error = error_get_last();

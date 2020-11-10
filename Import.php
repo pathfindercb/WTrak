@@ -1,7 +1,7 @@
 <?php
 /** PAI CRUD Import
- * package    PAI_CRUD 20190528
- * @license   Copyright © 2018 Pathfinder Associates, Inc.
+ * package    PAI_CRUD 20201030
+ * @license   Copyright © 2020 Pathfinder Associates, Inc.
  *	opens the wtrak db and imports to the wdata table
  */
 
@@ -9,8 +9,14 @@
 session_start();
 if(!isset($_SESSION["wuserid"])) {
 	header("Location:Login.php");
+	exit;
 }
 require ("DBopen.php");
+include ("PAI_crypt.class.php");
+//get the secret key not stored in www folders
+require_once ($pfolder . 'DBkey.php');
+$paicrypt = new PAI_crypt($DBkey);
+
 // check if Post from submit on form below
 if(isset($_POST) & !empty($_POST)){
 
@@ -36,7 +42,7 @@ if(isset($_POST) & !empty($_POST)){
 				$dbWgt[] = array_combine($header, $row);
 			}
 			// check if file has correct format then import
-			if (!(count($dbWgt[0])==3)) {
+			if (!(count($dbWgt[0])==2)) {
 				$fmsg =  "Error: " . count($dbWgt[0]) . " Not valid CSV file.";
 				unset ($dbWgt);
 			}
@@ -51,9 +57,12 @@ if(isset($_POST) & !empty($_POST)){
 			foreach ($dbWgt as $row) {
 				$wdate = ($row['date']);
 				$wgt = ($row['weight']);
-				$wnote = ($row['note']);
-				$sql = "INSERT INTO `wdata` (userid, wdate, wgt, wnote) VALUES (:userid,:wdate, :wgt, :wnote)";
-				$val = array("userid" => $_SESSION["wuserid"], "wdate" => $wdate, "wgt" => $wgt, "wnote" => $wnote);
+//				$wnote = $paicrypt->encrypt(($row['note']));
+//				$wnote = null;
+				$sql = "INSERT INTO `wdata` (userid, wdate, wgt) VALUES (:userid,:wdate, :wgt)";
+				$val = array("userid" => $_SESSION["wuserid"], "wdate" => $wdate, "wgt" => $wgt);
+//print("<pre>".print_r($val,true)."</pre>");		
+
 				$stmt = $pdo->prepare($sql);
 				$stmt->execute($val);
 			}
@@ -123,7 +132,7 @@ if(isset($_POST) & !empty($_POST)){
 			<label for="input1" class="col-sm-2 control-label">Import type</label>
 			<div class="col-sm-6">
 				<select name="choice" class="form-control">
-				<option value="1">CSV with header: date,weight,note & date as yyyy-mm-dd</option>
+				<option value="1">CSV with header: date,weight (date as yyyy-mm-dd)</option>
 				<option value="2">JSON in format: {Response}{version}{Data}{Date}{Weight}{Note}</option>
 				</select>			
 			</div>

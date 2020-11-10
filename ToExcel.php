@@ -1,7 +1,7 @@
 <?php
 /** PAI CRUD Create
- * package    PAI_CRUD 20180502
- * @license   Copyright © 2018 Pathfinder Associates, Inc.
+ * package    PAI_CRUD 20201030
+ * @license   Copyright © 2020 Pathfinder Associates, Inc.
  *	opens the wtrak db and add to the wdata table
  *	the generic version can accept a table and get the columns but this hardcodes wtrak
  */
@@ -11,9 +11,14 @@ register_shutdown_function('shutDownFunction');
 session_start();
 if(!isset($_SESSION["wuserid"])) {
 	header("Location:Login.php");
+	exit;
 }
 
 require ("DBopen.php");
+include ("PAI_crypt.class.php");
+//get the secret key not stored in www folders
+require_once ($pfolder . 'DBkey.php');
+$paicrypt = new PAI_crypt($DBkey);
 
 
 /*if (isset($_GET['sql'])) {
@@ -45,6 +50,9 @@ $r = $stmt->fetchALL(PDO::FETCH_ASSOC);
 //header flipped set to strings
 $keys = array_keys(array_flip(array("Username","Email address", "Date", "Weight", "To Goal", "Notes")));
 $hdr = array_fill_keys($keys, "string");
+foreach ($r as &$row) {
+	$row['wnote'] = $paicrypt->decrypt($row['wnote']);
+}
 
 //print("<pre>".print_r($r,true)."</pre>");		
 
@@ -57,16 +65,16 @@ $hdr = array_fill_keys($keys, "string");
 	header('Content-Transfer-Encoding: binary');
 	header('Cache-Control: must-revalidate');
 	header('Pragma: public');
-		//setup body & heading row style
+	//setup body & heading row style
 	$bstyle = array( 'font'=>'Arial','font-size'=>10,'font-style'=>'normal', 'halign'=>'center', 'border'=>'bottom');
 	$hstyle = array( 'font'=>'Arial','font-size'=>10,'font-style'=>'bold', 'halign'=>'center', 'border'=>'bottom');
 	$h1style = array( 'font'=>'Arial','font-size'=>12,'font-style'=>'bold', 'halign'=>'left', 'border'=>'bottom');
 	$hdrRes = array(date('m/d/y'),'WTrak Listing');
 	//write header then sheet data and output file
 	$writer = new XLSXWriter();
-	$writer->setTitle('WTrak Listing v1.0');
-	$writer->setAuthor('Chris Barlow, Pathfinder Associates, Inc. ');
-	$writer->setColWidths("WTrak",array(15,30,10,10,10,40,20,20,20,20,20));
+	$writer->setTitle('WTrak Listing v2.0');
+	$writer->setAuthor('Chris Barlow & Joe Maffei, Pathfinder Associates, Inc. ');
+	$writer->setColWidths("WTrak",array(15,30,15,10,10,50));
 	$writer->writeSheetHeader("WTrak",$hdr,true);
 	$writer->writeSheetRow("WTrak",$keys,$hstyle);
 	$writer->writeSheet($r,"WTrak",$hdr,true);

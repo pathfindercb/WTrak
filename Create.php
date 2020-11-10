@@ -1,7 +1,7 @@
 <?php
 /** PAI CRUD Create
- * package    PAI_CRUD 20180511
- * @license   Copyright © 2018 Pathfinder Associates, Inc.
+ * package    PAI_CRUD 20201030
+ * @license   Copyright © 2020 Pathfinder Associates, Inc.
  *	opens the wtrak db and add to the wdata table
  */
 
@@ -9,14 +9,19 @@
 session_start();
 if(!isset($_SESSION["wuserid"])) {
 	header("Location:Login.php");
+	exit;
 }
 
 require ("DBopen.php");
+include ("PAI_crypt.class.php");
+//get the secret key not stored in www folders
+require_once ($pfolder . 'DBkey.php');
+$paicrypt = new PAI_crypt($DBkey);
 
 if(isset($_POST) & !empty($_POST)){
 	$wdate = ($_POST['wdate']);
 	$wgt = ($_POST['wgt']);
-	$wnote = ($_POST['wnote']);
+	$wnote = $paicrypt->encrypt($_POST['wnote']);
 
 	$sql = "INSERT INTO `wdata` (userid, wdate, wgt, wnote) VALUES (:userid,:wdate, :wgt, :wnote)";
 	$val = array("userid" => $_SESSION["wuserid"], "wdate" => $wdate, "wgt" => $wgt, "wnote" => $wnote);
@@ -60,7 +65,7 @@ if(isset($_POST) & !empty($_POST)){
 			<div class="form-group">
 			    <label for="wgt" class="col-sm-2 control-label">Weight</label>
 			    <div class="col-sm-6">
-			    <input type="text" name="wgt"  class="form-control" id="wgt"  placeholder="Weight" />
+			    <input type="number" step="0.1"  name="wgt"  class="form-control" id="wgt"  placeholder="Weight" />
 			    </div>
 			</div>
 			<div class="form-group">

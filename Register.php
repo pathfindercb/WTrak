@@ -1,40 +1,73 @@
 <?php
 /** PAI CRUD Add User
- * package    PAI_CRUD 20180513
- * @license   Copyright © 2018 Pathfinder Associates, Inc.
+ * package    PAI_CRUD 20200406
+ * @license   Copyright © 2020 Pathfinder Associates, Inc.
  *	opens the wtrak db and adds to the wuser table
+ *
+ * Need to add in email verification sent like ForgotPW and then set Active
  */
 // check if logged in 
 session_start();
+unset($_SESSION["wuserid"]);
+register_shutdown_function('shutDownFunction');
 
 // find the db and open it and return $pdo object
 require ("DBopen.php");
-// setup encryption
-include ("PAI_crypt.class.php");
-//get the secret key not stored in www folders
-require_once ($pfolder . 'DBkey.php');
-$paicrypt = new PAI_crypt($DBkey);
+require_once ('PAI_GoogleAuth.php');
+$ga = new PAI_GoogleAuth();
 
 // check if Post from submit on form below
 if(isset($_POST) & !empty($_POST)){
+	$scode = $_POST['scode'];
+	$qrCodeUrl = $ga->getQRCodeGoogleUrl('WTrak', $scode);	
 	$email = $_POST['email'];
 	$username = $_POST['username'];
-	$password = $paicrypt->encrypt($_POST['password']);
 	$wgoal = $_POST['goal'];
 	$wgoaldate = $_POST['goaldate'];
-	$sql = "INSERT INTO `wuser` (email, username, password, wgoal, wgoaldate) VALUES (:email, :username, :password, :wgoal, :wgoaldate)";
-	$val = array("email" => $email,"username" => $username, "password" => $password, "wgoal" => $wgoal, "wgoaldate" => $wgoaldate);
-	$stmt = $pdo->prepare($sql);
-	try {
-		$stmt->execute($val);
-	} catch (PDOException $e) {
-			if ($e->getCode() == 23000 ) {
-			// duplicate email
-			$fmsg = "That email address is already registered. Please <a href='Login.php'>     Login</a>";
-		} else {
-			$fmsg = 'Update failed: ' . $e->getCode();
+    // check if e-mail address is well-formed
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+      $fmsg = "Invalid email format";
+    } else {
+		$password = password_hash($_POST['password'], PASSWORD_DEFAULT);
+		$sql = "INSERT INTO `wuser` (email, username, password, scode, wgoal, wgoaldate) VALUES (:email, :username, :password, :scode, :wgoal, :wgoaldate)";
+		$val = array("email" => $email,"username" => $username, "password" => $password, "scode" => $scode, "wgoal" => $wgoal, "wgoaldate" => $wgoaldate);
+		$stmt = $pdo->prepare($sql);
+		try {
+			$stmt->execute($val);
+		} catch (PDOException $e) {
+				if ($e->getCode() == 23000 ) {
+				// duplicate email
+				$fmsg = "That email address is already registered. Please <a href='Login.php'>     Login</a>";
+			} else {
+				$fmsg = 'Update failed: ' . $e->getCode();
+			}
 		}
+		// now send activate email
+		// now create token and update user record
+		$url = ActToken($email,$pdo);
+		if ($url) {
+			// now email password token
+			$to = $email;
+			$subject = 'WTrak Activation' ;
+			$message = "Click here to activate your account: " .  $url;
+			$headers = 'From: cbarlow@pathfinderassociatesinc.com' . "\r\n" .
+			'Reply-To: cbarlow@pathfinderassociatesinc.com' . "\r\n" .
+			'X-Mailer: PHP/' . phpversion();
+			if (mail($to, $subject, $message, $headers)) {
+				header("Location:Processing.php");
+			} else {
+				$fmsg = "Mail failed";
+			}
+		}
+
+		header('location: Processing.php');
 	}
+} else {
+	// setup defaults
+	$wgoaldate = date('Y-m-d');
+	//generate a secret code
+	$scode = $ga->createSecret();
+	$qrCodeUrl = $ga->getQRCodeGoogleUrl('WTrak', $scode);	
 }
 ?>
 <!DOCTYPE html>
@@ -68,7 +101,7 @@ if(isset($_POST) & !empty($_POST)){
 			<div class="form-group">
 			    <label for="username" class="col-xs-4 control-label">Username</label>
 			    <div class="col-xs-8">
-			      <input type="text" name="username"  maxlength="10" class="form-control" id="username"  required placeholder="Username" />
+			      <input type="text" name="username"  maxlength="10" class="form-control" id="username" value="<?php echo $username; ?>" required placeholder="Username" />
 			    </div>
 			</div>
 			<div class="form-group">
@@ -80,13 +113,20 @@ if(isset($_POST) & !empty($_POST)){
 			<div class="form-group">
 			    <label for="goal" class="col-xs-4 control-label">Goal</label>
 			    <div class="col-xs-8">
-			      <input type="text" name="goal"  class="form-control" id="goal"  />
+			      <input type="text" name="goal"  class="form-control" id="goal" value="<?php echo $wgoal; ?>" />
 			    </div>
 			</div>
 			<div class="form-group">
 			    <label for="goaldate" class="col-xs-4 control-label">Goal date</label>
 			    <div class="col-xs-8">
-			      <input type="date" name="goaldate"  class="form-control" id="goaldate" value="<?php echo date('Y-m-d'); ?>" required placeholder="Goal Date" />
+			      <input type="date" name="goaldate"  class="form-control" id="goaldate" value="<?php echo $wgoaldate; ?>" required placeholder="Goal Date" />
+			    </div>
+			</div>
+			<div class="form-group">
+			    <label for="scode" class="col-xs-4 control-label">Secret code</label>
+			    <div class="col-xs-8">
+			      <input type="text" readonly class="form-control-plaintext" name="scode"  required id="scode" value="<?php echo $scode; ?>" required placeholder="Secret code"/>
+				  <img src="<?php echo $qrCodeUrl; ?>"> 
 			    </div>
 			</div>
 
@@ -97,6 +137,53 @@ if(isset($_POST) & !empty($_POST)){
 		</form>
 	</div>
 </div>
+<!--Footer-->
+<footer class="page-footer font-small blue pt-4 mt-4">
+<!--Copyright-->
+    <div class="footer-copyright py-3 text-center">
+        Copyright © 2020 
+        <a href="http://pathfinderassociatesinc.com/"> Pathfinder Associates, Inc.</a>
+    </div>
+<!--/.Copyright-->
+</footer>
+<!--/.Footer-->
+<?php
+function ActToken($email,$pdo) {
+	//creates activate token and url
+	// Create tokens
+	$selector = bin2hex(random_bytes(8));
+	$token = random_bytes(32);
+	// Token expiration
+	$expires = new DateTime('NOW');
+	$expires->add(new DateInterval('PT01H')); // 1 hour
+	$link = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 
+                "https" : "http") . "://" . $_SERVER['HTTP_HOST'] .  
+                $_SERVER['REQUEST_URI'];
+	$link = str_replace('Register.php','activate.php?',$link);
+	$url = $link . http_build_query([
+		'selector' => $selector,
+		'validator' => bin2hex($token)]) ;
+	// now update user record
+	$sql = "UPDATE `wuser` SET selector=:selector, token=:token, expires=:expires WHERE email=:email";
+	$val = array("selector" => $selector, "token" => hash('sha256', $token), "expires" => $expires->format('U'), "email" => $email);
+	$stmt = $pdo->prepare($sql);
+	if($stmt->execute($val)){
+		return $url;
+	}else{
+		$fmsg = "Failed to update data.";
+		return false;
+	}
+}
 
+function shutDownFunction() { 
+    $error = error_get_last();
+    // fatal error, E_ERROR === 1
+    if ($error['type'] === E_ERROR) { 
+        //do your stuff
+		//error_log ($_SERVER['REMOTE_ADDR'] . '=' . $msg,0);
+		echo "Program failed! Please try again";
+    } 
+}
+?>
 </body>
 </html>

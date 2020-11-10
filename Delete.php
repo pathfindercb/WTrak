@@ -1,6 +1,6 @@
 <?php
 /** PAI CRUD Create
- * package    PAI_CRUD 20180502
+ * package    PAI_CRUD 20201030
  * @license   Copyright © 2018 Pathfinder Associates, Inc.
  *	opens the wtrak db and add to the wdata table
  */
@@ -9,6 +9,7 @@
 session_start();
 if(!isset($_SESSION["wuserid"])) {
 	header("Location:Logon.php");
+	exit;
 }
 
 require ("DBopen.php");

@@ -1,3 +1,3 @@
 <?php
-$pfolder = '../../private/WTrak/';
+$pfolder = '../../../private/WTrak/';
 ?>
