@@ -1,6 +1,6 @@
 <?php
 /** PAI CRUD Reset Password
- * package    PAI_CRUD 20200406
+ * package    PAI_CRUD 20201110
  * @license   Copyright © 2020 Pathfinder Associates, Inc.
  *	opens the wtrak db and checks email token for password reset
  */
